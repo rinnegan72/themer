@@ -9,7 +9,7 @@ for d in themes/*/; do
     [ -f "$d$f" ] || { echo "MISSING $d$f"; exit 1; }
   done
   ( . "$d/theme.env"
-    [ -n "$ZED_THEME" ] && [ -n "$NVIM_COLORSCHEME" ] && { [ "$BACKGROUND" = dark ] || [ "$BACKGROUND" = light ]; } ) \
+    [ -n "$ZED_THEME" ] && [ -n "$NVIM_COLORSCHEME" ] && [ -n "$VICINAE_THEME" ] && { [ "$BACKGROUND" = dark ] || [ "$BACKGROUND" = light ]; } ) \
     || { echo "BAD env: $d"; exit 1; }
 done
 

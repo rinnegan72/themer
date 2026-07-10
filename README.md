@@ -16,6 +16,7 @@ theme-set tokyo-night
 | tmux | `source-file` of the theme fragment | `tmux source-file`, instant |
 | nvim (LazyVim) | `lua/plugins/themer.lua` reads `current/nvim.lua` | `--remote-send` to every running instance, instant |
 | Zed | rewrites the `"theme"` object in settings.json | Zed hot-reloads, instant |
+| Vicinae | `vicinae-cli theme set <built-in name>` | applied by the server, instant |
 | atuin | `themes/themer.toml` symlink | next launch |
 | k9s | `skins/themer.yaml` symlink | next launch |
 | lazygit | whole `config.yml` is a symlink | next launch |
@@ -50,7 +51,7 @@ theme-next         # cycle
 Copy any `themes/<name>/` directory and swap the palette:
 
 ```
-theme.env      # ZED_THEME, NVIM_COLORSCHEME, BACKGROUND=dark|light
+theme.env      # ZED_THEME, NVIM_COLORSCHEME, VICINAE_THEME, BACKGROUND=dark|light
 ghostty.conf   # theme = <a `ghostty +list-themes` name>
 nvim.lua       # colorscheme + background
 tmux.conf      # status/pane/message styles

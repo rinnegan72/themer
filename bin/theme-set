@@ -11,7 +11,7 @@ fi
 
 mkdir -p "$HOME/.config/themer"
 ln -sfn "$T" "$HOME/.config/themer/current"
-. "$T/theme.env" # ZED_THEME, NVIM_COLORSCHEME, BACKGROUND
+. "$T/theme.env" # ZED_THEME, NVIM_COLORSCHEME, BACKGROUND, VICINAE_THEME
 
 # zed: rewrite the "theme" object; hot-reloads on save
 # ponytail: regex on JSONC, breaks if a nested { } ever appears inside the theme object
@@ -23,6 +23,12 @@ if p.exists():
     new = f'"theme": {{\n    "mode": "{mode}",\n    "light": "{theme}",\n    "dark": "{theme}"\n  }}'
     p.write_text(re.sub(r'"theme":\s*\{[^{}]*\}', new, p.read_text(), count=1))
 EOF
+
+# vicinae: its CLI writes settings.json and the server applies it live
+VC=/Applications/Vicinae.app/Contents/MacOS/vicinae-cli
+if [ -x "$VC" ] && [ -n "${VICINAE_THEME:-}" ]; then
+  "$VC" theme set "$VICINAE_THEME" >/dev/null 2>&1 || true
+fi
 
 # tmux: re-source config (picks up current/tmux.conf fragment)
 if tmux ls >/dev/null 2>&1; then
