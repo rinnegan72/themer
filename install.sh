@@ -70,10 +70,12 @@ name = "themer"
 ' "$CFG/atuin/config.toml"
 fi
 
-# --- k9s: stable skin name "themer" -> symlinked skin
-bk "$CFG/k9s/config.yaml"
-ln -sfn "$CFG/themer/current/k9s.yaml" "$CFG/k9s/skins/themer.yaml"
-sed -i '' 's|skin: .*|skin: themer|' "$CFG/k9s/config.yaml"
+# --- k9s: stable skin name "themer" -> symlinked skin (macOS config dir, not ~/.config)
+K9S="$HOME/Library/Application Support/k9s"
+mkdir -p "$K9S/skins"
+bk "$K9S/config.yaml"
+ln -sfn "$CFG/themer/current/k9s.yaml" "$K9S/skins/themer.yaml"
+sed -i '' 's|skin: .*|skin: themer|' "$K9S/config.yaml"
 
 # --- lazygit: whole config is theme-only, symlink it (macOS config dir)
 LG="$HOME/Library/Application Support/lazygit"
