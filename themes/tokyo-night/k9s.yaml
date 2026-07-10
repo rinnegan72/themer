@@ -24,7 +24,7 @@ k9s:
   # Command prompt styles
   prompt:
     fgColor: *foreground
-    bgColor: *background
+    bgColor: default
     suggestColor: *orange
   # ClusterInfoView styles.
   info:

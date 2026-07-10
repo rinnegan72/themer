@@ -21,18 +21,18 @@ red: &red "#dc322f"
 k9s:
   body:
     fgColor: *foreground
-    bgColor: *background
+    bgColor: default
     logoColor: *blue
   prompt:
     fgColor: *foreground
-    bgColor: *background
+    bgColor: default
     suggestColor: *orange
   info:
     fgColor: *magenta
     sectionColor: *foreground
   dialog:
     fgColor: *foreground
-    bgColor: *background
+    bgColor: default
     buttonFgColor: *foreground
     buttonBgColor: *magenta
     buttonFocusFgColor: white
@@ -61,7 +61,7 @@ k9s:
       completedColor: *comment
     title:
       fgColor: *foreground
-      bgColor: *background
+      bgColor: default
       highlightColor: *blue
       counterColor: *magenta
       filterColor: *magenta
@@ -76,17 +76,17 @@ k9s:
         - *red
     table:
       fgColor: *foreground
-      bgColor: *background
+      bgColor: default
       cursorFgColor: white
       cursorBgColor: *background
       markColor: darkgoldenrod
       header:
         fgColor: *foreground
-        bgColor: *background
+        bgColor: default
         sorterColor: *cyan
     xray:
       fgColor: *foreground
-      bgColor: *background
+      bgColor: default
       cursorColor: *current_line
       graphicColor: *blue
       showIcons: false
@@ -96,7 +96,7 @@ k9s:
       valueColor: *foreground
     logs:
       fgColor: *foreground
-      bgColor: *background
+      bgColor: default
       indicator:
         fgColor: *foreground
         bgColor: *selection

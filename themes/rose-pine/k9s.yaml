@@ -21,12 +21,12 @@ k9s:
   # General K9s styles
   body:
     fgColor: *foreground
-    bgColor: *background
+    bgColor: default
     logoColor: *purple
   # Command prompt styles
   prompt:
     fgColor: *foreground
-    bgColor: *background
+    bgColor: default
     suggestColor: *purple
   # ClusterInfoView styles.
   info:
@@ -35,7 +35,7 @@ k9s:
   # Dialog styles.
   dialog:
     fgColor: *foreground
-    bgColor: *background
+    bgColor: default
     buttonFgColor: *foreground
     buttonBgColor: *purple
     buttonFocusFgColor: *yellow
@@ -86,16 +86,16 @@ k9s:
     # TableView attributes.
     table:
       fgColor: *foreground
-      bgColor: *background
+      bgColor: default
       # Header row styles.
       header:
         fgColor: *foreground
-        bgColor: *background
+        bgColor: default
         sorterColor: *cyan
     # Xray view attributes.
     xray:
       fgColor: *foreground
-      bgColor: *background
+      bgColor: default
       cursorColor: *current_line
       graphicColor: *purple
       showIcons: false
@@ -107,7 +107,7 @@ k9s:
     # Logs styles.
     logs:
       fgColor: *foreground
-      bgColor: *background
+      bgColor: default
       indicator:
         fgColor: *foreground
         bgColor: *purple
