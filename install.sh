@@ -83,6 +83,15 @@ if [ -f "$LG/config.yml" ] && [ ! -L "$LG/config.yml" ]; then
 fi
 ln -sfn "$CFG/themer/current/lazygit.yml" "$LG/config.yml"
 
+# --- starship: marker-scoped palette only (never touches module config/format)
+STAR="$CFG/starship.toml"
+if [ -f "$STAR" ] && ! grep -q '^palette = "themer"' "$STAR"; then
+  bk "$STAR"
+  sed -i '' 's|^palette = |# palette = |' "$STAR"
+  printf '# >>> themer palette (auto-managed) >>>\npalette = "themer"\n# <<< themer palette <<<\n\n' | cat - "$STAR" > "$STAR.tmp" && mv "$STAR.tmp" "$STAR"
+  printf '\n# >>> themer palette table (auto-managed) >>>\n[palettes.themer]\n# <<< themer palette table <<<\n' >> "$STAR"
+fi
+
 # --- PATH
 if ! grep -q 'Projects/themer/bin' "$HOME/.zshrc"; then
   echo 'export PATH="$HOME/Projects/themer/bin:$PATH"' >> "$HOME/.zshrc"

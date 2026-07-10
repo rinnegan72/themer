@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 for d in themes/*/; do
-  for f in theme.env ghostty.conf tmux.conf atuin.toml lazygit.yml nvim.lua k9s.yaml; do
+  for f in theme.env ghostty.conf tmux.conf atuin.toml lazygit.yml nvim.lua k9s.yaml starship.toml; do
     [ -f "$d$f" ] || { echo "MISSING $d$f"; exit 1; }
   done
   ( . "$d/theme.env"

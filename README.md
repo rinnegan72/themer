@@ -13,14 +13,14 @@ theme-set tokyo-night
 | App | Mechanism | Reload |
 |---|---|---|
 | Ghostty | `config-file = themer.conf` → built-in theme name | osascript clicks its Reload Configuration menu (fallback: cmd+shift+,) |
-| tmux | `source-file` of the theme fragment | `tmux source-file`, instant |
+| tmux | `source-file` of the theme fragment (catppuccin/tmux-style segmented status bar) | `tmux source-file`, instant |
 | nvim (LazyVim) | `lua/plugins/themer.lua` reads `current/nvim.lua` | `--remote-send` to every running instance, instant |
 | Zed | rewrites the `"theme"` object in settings.json | Zed hot-reloads, instant |
 | Vicinae | `vicinae-cli theme set <built-in name>` | applied by the server, instant |
 | atuin | `themes/themer.toml` symlink | next launch |
 | k9s | `skins/themer.yaml` symlink | next launch |
 | lazygit | whole `config.yml` is a symlink | next launch |
-| starship | nothing — default prompt uses ANSI colors, follows the terminal palette | free |
+| starship | marker-scoped `[palettes.themer]` table swap — only touches that block, never your module config/format | `theme-set`, next prompt |
 
 ## Themes
 
@@ -54,8 +54,9 @@ Copy any `themes/<name>/` directory and swap the palette:
 theme.env      # ZED_THEME, NVIM_COLORSCHEME, VICINAE_THEME, BACKGROUND=dark|light
 ghostty.conf   # theme = <a `ghostty +list-themes` name>
 nvim.lua       # colorscheme + background
-tmux.conf      # status/pane/message styles
+tmux.conf      # segmented status bar (catppuccin/tmux-style), pane/message styles
 atuin.toml     # 8 color keys
 lazygit.yml    # gui.theme block
 k9s.yaml       # a k9s skin
+starship.toml  # [palettes.themer]: red, peach, yellow, green, sapphire, lavender, crust
 ```

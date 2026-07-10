@@ -47,5 +47,20 @@ for s in "${TMPDIR:-/tmp/}"nvim."$USER"/*/nvim.*.0; do
   nvim --server "$s" --remote-send "<C-\\><C-n>:set background=$BACKGROUND<CR>:colorscheme $NVIM_COLORSCHEME<CR>" >/dev/null 2>&1 || true
 done
 
-# atuin/k9s/lazygit: read through symlinks — themed on next launch. starship: follows terminal ANSI palette.
+# starship: swap only the [palettes.themer] table + `palette = "themer"` line, between
+# markers install.sh already placed — everything else in the user's starship.toml
+# (module config, format string) is never read or touched.
+python3 - "$T/starship.toml" <<'EOF'
+import re, sys, pathlib
+frag = pathlib.Path(sys.argv[1]).read_text().rstrip("\n")
+p = pathlib.Path.home() / ".config/starship.toml"
+if p.exists():
+    text = p.read_text()
+    text = re.sub(
+        r'(# >>> themer palette table \(auto-managed\) >>>\n).*?(\n# <<< themer palette table <<<)',
+        lambda m: m.group(1) + frag + m.group(2), text, count=1, flags=re.S)
+    p.write_text(text)
+EOF
+
+# atuin/k9s/lazygit: read through symlinks — themed on next launch.
 echo "theme: $1"
