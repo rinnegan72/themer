@@ -19,7 +19,7 @@ ln -sfn "$CFG/themer/current/ghostty.conf" "$CFG/ghostty/themer.conf"
 bk "$CFG/tmux/tmux.conf"
 sed -i '' -e "s|^set -g @plugin 'catppuccin|# &|" -e "s|^set -g @catppuccin|# &|" "$CFG/tmux/tmux.conf"
 if ! grep -q 'themer/current/tmux.conf' "$CFG/tmux/tmux.conf"; then
-  printf '\n# themer: keep after the tpm run line\nsource-file -q ~/.config/themer/current/tmux.conf\n' >> "$CFG/tmux/tmux.conf"
+  printf '\n# themer: keep after the tpm run line; unset leftover plugin formats so theme styles show\nset -gu window-status-format\nset -gu window-status-current-format\nsource-file -q ~/.config/themer/current/tmux.conf\n' >> "$CFG/tmux/tmux.conf"
 fi
 
 # --- nvim: replace hardcoded colorscheme.lua with themer.lua (reads current/nvim.lua)
