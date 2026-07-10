@@ -1,0 +1,12 @@
+[theme]
+name = "themer"
+
+[colors]
+AlertInfo = "#9ccfd8"
+AlertWarn = "#ea9a97"
+AlertError = "#eb6f92"
+Annotation = "#c4a7e7"
+Base = "#e0def4"
+Guidance = "#6e6a86"
+Important = "#eb6f92"
+Title = "#c4a7e7"

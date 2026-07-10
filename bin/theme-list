@@ -1,0 +1,6 @@
+#!/bin/bash
+cur="$(basename "$(readlink "$HOME/.config/themer/current" 2>/dev/null || true)")"
+for t in "$(cd "$(dirname "$0")/.." && pwd)"/themes/*/; do
+  t="$(basename "$t")"
+  [ "$t" = "$cur" ] && echo "$t *" || echo "$t"
+done

@@ -1,0 +1,13 @@
+#!/bin/bash
+# Cycle to the next theme alphabetically.
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+cur="$(basename "$(readlink "$HOME/.config/themer/current" 2>/dev/null || true)")"
+themes=("$REPO"/themes/*/)
+next="$(basename "${themes[0]}")"
+for i in "${!themes[@]}"; do
+  if [ "$(basename "${themes[$i]}")" = "$cur" ]; then
+    next="$(basename "${themes[$(( (i + 1) % ${#themes[@]} ))]}")"
+    break
+  fi
+done
+exec "$REPO/bin/theme-set" "$next"

@@ -1,0 +1,45 @@
+#!/bin/bash
+# theme-set <name> — flip ~/.config/themer/current and reload apps (omarchy-style)
+set -euo pipefail
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+T="$REPO/themes/${1:-}"
+if [ -z "${1:-}" ] || [ ! -d "$T" ]; then
+  echo "usage: theme-set <name>" >&2
+  ls "$REPO/themes" >&2
+  exit 1
+fi
+
+mkdir -p "$HOME/.config/themer"
+ln -sfn "$T" "$HOME/.config/themer/current"
+. "$T/theme.env" # ZED_THEME, NVIM_COLORSCHEME, BACKGROUND
+
+# zed: rewrite the "theme" object; hot-reloads on save
+# ponytail: regex on JSONC, breaks if a nested { } ever appears inside the theme object
+python3 - "$ZED_THEME" "$BACKGROUND" <<'EOF'
+import re, sys, pathlib
+theme, mode = sys.argv[1], sys.argv[2]
+p = pathlib.Path.home() / ".config/zed/settings.json"
+if p.exists():
+    new = f'"theme": {{\n    "mode": "{mode}",\n    "light": "{theme}",\n    "dark": "{theme}"\n  }}'
+    p.write_text(re.sub(r'"theme":\s*\{[^{}]*\}', new, p.read_text(), count=1))
+EOF
+
+# tmux: re-source config (picks up current/tmux.conf fragment)
+if tmux ls >/dev/null 2>&1; then
+  tmux source-file "$HOME/.config/tmux/tmux.conf"
+fi
+
+# ghostty: reads current/ghostty.conf via symlink; nudge a reload
+if pgrep -qix ghostty >/dev/null 2>&1; then
+  osascript -e 'tell application "System Events" to click menu item "Reload Configuration" of menu 1 of menu bar item "Ghostty" of menu bar 1 of process "Ghostty"' >/dev/null 2>&1 \
+    || echo "ghostty: press cmd+shift+, to reload"
+fi
+
+# nvim: live-switch every running instance
+for s in "${TMPDIR:-/tmp/}"nvim."$USER"/*/nvim.*.0; do
+  [ -e "$s" ] || continue
+  nvim --server "$s" --remote-send "<C-\\><C-n>:set background=$BACKGROUND<CR>:colorscheme $NVIM_COLORSCHEME<CR>" >/dev/null 2>&1 || true
+done
+
+# atuin/k9s/lazygit: read through symlinks — themed on next launch. starship: follows terminal ANSI palette.
+echo "theme: $1"
