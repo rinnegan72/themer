@@ -70,11 +70,13 @@ name = "themer"
 ' "$CFG/atuin/config.toml"
 fi
 
-# --- k9s: stable skin name "themer" -> symlinked skin (macOS config dir, not ~/.config)
+# --- k9s: stable skin name "themer" -> real file, kept in sync by theme-set on
+# every switch (macOS config dir, not ~/.config). Not a symlink: k9s's fsnotify
+# skin watcher only fires on writes to this exact path, not a re-pointed symlink.
 K9S="$HOME/Library/Application Support/k9s"
 mkdir -p "$K9S/skins"
 bk "$K9S/config.yaml"
-ln -sfn "$CFG/themer/current/k9s.yaml" "$K9S/skins/themer.yaml"
+[ -f "$CFG/themer/current/k9s.yaml" ] && cp "$CFG/themer/current/k9s.yaml" "$K9S/skins/themer.yaml"
 sed -i '' 's|skin: .*|skin: themer|' "$K9S/config.yaml"
 
 # --- lazygit: whole config is theme-only, symlink it (macOS config dir)

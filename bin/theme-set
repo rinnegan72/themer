@@ -72,5 +72,11 @@ if [ -n "$WALL" ]; then
   osascript -e "tell application \"System Events\" to tell every desktop to set picture to (POSIX file \"$WALL\")" >/dev/null 2>&1 || true
 fi
 
-# atuin/k9s/lazygit: read through symlinks — themed on next launch.
+# k9s: copy (not symlink) into its watched skins dir — k9s's fsnotify watcher
+# only fires on writes to that exact directory, not on re-pointing a symlink
+# elsewhere in the chain, so a real write is what makes reactive:true live-reload it.
+K9S_SKIN="$HOME/Library/Application Support/k9s/skins/themer.yaml"
+[ -f "$T/k9s.yaml" ] && cp "$T/k9s.yaml" "$K9S_SKIN"
+
+# atuin/lazygit: read through symlinks — themed on next launch.
 echo "theme: $1"
