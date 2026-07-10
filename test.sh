@@ -11,6 +11,12 @@ for d in themes/*/; do
   ( . "$d/theme.env"
     [ -n "$ZED_THEME" ] && [ -n "$NVIM_COLORSCHEME" ] && [ -n "$VICINAE_THEME" ] && { [ "$BACKGROUND" = dark ] || [ "$BACKGROUND" = light ]; } ) \
     || { echo "BAD env: $d"; exit 1; }
+  wall="$(ls "$d"wallpaper.* 2>/dev/null | head -n1)"
+  [ -n "$wall" ] || { echo "MISSING ${d}wallpaper.*"; exit 1; }
+  case "$(file --mime-type -b "$wall")" in
+    image/*) ;;
+    *) echo "BAD wallpaper: $wall"; exit 1 ;;
+  esac
 done
 
 bin/theme-set no-such-theme >/dev/null 2>&1 && { echo "bogus name should fail"; exit 1; }
