@@ -40,7 +40,9 @@ if tmux ls >/dev/null 2>&1; then
 fi
 
 # ghostty: reads current/ghostty.conf via symlink; nudge a reload
-if pgrep -qix ghostty >/dev/null 2>&1; then
+# pgrep can't see it: macOS stores the truncated bundle path as the proc name;
+# ucomm column is space-padded, hence the ' *'
+if ps -axo ucomm | grep -qix 'ghostty *'; then
   osascript -e 'tell application "System Events" to click menu item "Reload Configuration" of menu 1 of menu bar item "Ghostty" of menu bar 1 of process "Ghostty"' >/dev/null 2>&1 \
     || echo "ghostty: press cmd+shift+, to reload"
 fi
@@ -76,7 +78,10 @@ fi
 # only fires on writes to that exact directory, not on re-pointing a symlink
 # elsewhere in the chain, so a real write is what makes reactive:true live-reload it.
 K9S_SKIN="$HOME/Library/Application Support/k9s/skins/themer.yaml"
-[ -f "$T/k9s.yaml" ] && cp "$T/k9s.yaml" "$K9S_SKIN"
+if [ -f "$T/k9s.yaml" ]; then
+  mkdir -p "${K9S_SKIN%/*}"
+  cp "$T/k9s.yaml" "$K9S_SKIN"
+fi
 
 # atuin/lazygit: read through symlinks — themed on next launch.
 echo "theme: $1"
