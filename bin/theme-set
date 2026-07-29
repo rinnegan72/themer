@@ -48,8 +48,8 @@ name = sys.argv[1]
 p = pathlib.Path.home() / ".config/herdr/config.toml"
 text = p.read_text()
 text = re.sub(
-    r'(# >>> themer theme \(auto-managed\) >>>\n\[theme\]\n).*?(\n# <<< themer theme <<<)',
-    lambda m: m.group(1) + f'name = "{name}"' + m.group(2), text, count=1, flags=re.S)
+    r'(# >>> themer theme \(auto-managed\) >>>\n).*?(\n# <<< themer theme <<<)',
+    lambda m: m.group(1) + f'[theme]\nname = "{name}"' + m.group(2), text, count=1, flags=re.S)
 p.write_text(text)
 EOF
   herdr server reload-config >/dev/null 2>&1 || true

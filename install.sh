@@ -102,6 +102,7 @@ if command -v herdr >/dev/null; then
   [ -f "$HERDR" ] || { mkdir -p "$CFG/herdr"; herdr --default-config > "$HERDR"; }
   if ! grep -q 'themer theme (auto-managed)' "$HERDR"; then
     bk "$HERDR"
+    sed -i '' 's|^\[theme\]|# [theme]|' "$HERDR"
     printf '\n# >>> themer theme (auto-managed) >>>\n[theme]\n# <<< themer theme <<<\n' >> "$HERDR"
   fi
 fi
