@@ -14,6 +14,7 @@ theme-set tokyo-night
 |---|---|---|
 | Ghostty | `config-file = themer.conf` → built-in theme name | osascript clicks its Reload Configuration menu (fallback: cmd+shift+,) |
 | tmux | `source-file` of the theme fragment (catppuccin/tmux-style segmented status bar) | `tmux source-file`, instant |
+| herdr | marker-scoped `[theme]` block in `config.toml` set to a built-in theme name | `herdr server reload-config`, instant |
 | nvim (LazyVim) | `lua/plugins/themer.lua` reads `current/nvim.lua` | `--remote-send` to every running instance, instant |
 | Zed | rewrites the `"theme"` object in settings.json | Zed hot-reloads, instant |
 | Vicinae | `vicinae-cli theme set <built-in name>` | applied by the server, instant |
@@ -54,7 +55,7 @@ theme-next         # cycle
 Copy any `themes/<name>/` directory and swap the palette:
 
 ```
-theme.env      # ZED_THEME, NVIM_COLORSCHEME, VICINAE_THEME, BACKGROUND=dark|light
+theme.env      # ZED_THEME, NVIM_COLORSCHEME, VICINAE_THEME, HERDR_THEME, BACKGROUND=dark|light
 ghostty.conf   # theme = <a `ghostty +list-themes` name>
 nvim.lua       # colorscheme + background
 tmux.conf      # segmented status bar (catppuccin/tmux-style), pane/message styles

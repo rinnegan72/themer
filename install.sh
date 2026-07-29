@@ -96,6 +96,16 @@ if [ -f "$STAR" ] && ! grep -q '^palette = "themer"' "$STAR"; then
   printf '\n# >>> themer palette table (auto-managed) >>>\n[palettes.themer]\n# <<< themer palette table <<<\n' >> "$STAR"
 fi
 
+# --- herdr: marker-scoped [theme] block only (config.toml also holds [terminal]/[keys]/[update])
+HERDR="$CFG/herdr/config.toml"
+if command -v herdr >/dev/null; then
+  [ -f "$HERDR" ] || { mkdir -p "$CFG/herdr"; herdr --default-config > "$HERDR"; }
+  if ! grep -q 'themer theme (auto-managed)' "$HERDR"; then
+    bk "$HERDR"
+    printf '\n# >>> themer theme (auto-managed) >>>\n[theme]\n# <<< themer theme <<<\n' >> "$HERDR"
+  fi
+fi
+
 # --- PATH
 if ! grep -q 'Projects/themer/bin' "$HOME/.zshrc"; then
   echo 'export PATH="$HOME/Projects/themer/bin:$PATH"' >> "$HOME/.zshrc"

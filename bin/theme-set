@@ -39,6 +39,22 @@ if tmux ls >/dev/null 2>&1; then
   tmux source-file "$HOME/.config/tmux/tmux.conf"
 fi
 
+# herdr: rewrite the marker-scoped [theme] block, then reload the running server live
+HERDR="$HOME/.config/herdr/config.toml"
+if [ -f "$HERDR" ] && [ -n "${HERDR_THEME:-}" ]; then
+  python3 - "$HERDR_THEME" <<'EOF'
+import re, sys, pathlib
+name = sys.argv[1]
+p = pathlib.Path.home() / ".config/herdr/config.toml"
+text = p.read_text()
+text = re.sub(
+    r'(# >>> themer theme \(auto-managed\) >>>\n\[theme\]\n).*?(\n# <<< themer theme <<<)',
+    lambda m: m.group(1) + f'name = "{name}"' + m.group(2), text, count=1, flags=re.S)
+p.write_text(text)
+EOF
+  herdr server reload-config >/dev/null 2>&1 || true
+fi
+
 # ghostty: reads current/ghostty.conf via symlink; nudge a reload
 # pgrep can't see it: macOS stores the truncated bundle path as the proc name;
 # ucomm column is space-padded, hence the ' *'
