@@ -52,7 +52,12 @@ text = re.sub(
     lambda m: m.group(1) + f'[theme]\nname = "{name}"' + m.group(2), text, count=1, flags=re.S)
 p.write_text(text)
 EOF
-  herdr server reload-config >/dev/null 2>&1 || true
+  # reload every running session — each is an independent server process
+  # holding its own in-memory copy of the shared config
+  for s in $(herdr session list --json 2>/dev/null | python3 -c \
+      'import json,sys; print("\n".join(s["name"] for s in json.load(sys.stdin)["sessions"] if s["running"]))'); do
+    herdr --session "$s" server reload-config >/dev/null 2>&1 || true
+  done
 fi
 
 # ghostty: reads current/ghostty.conf via symlink; nudge a reload
