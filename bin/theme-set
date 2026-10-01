@@ -39,17 +39,22 @@ if tmux ls >/dev/null 2>&1; then
   tmux source-file "$HOME/.config/tmux/tmux.conf"
 fi
 
-# herdr: rewrite the marker-scoped [theme] block, then reload the running server live
+# herdr: rewrite the marker-scoped [theme] block, then reload the running server live.
+# Optional themes/<name>/herdr.toml layers [theme.custom] color overrides on top of
+# HERDR_THEME's built-in palette, for themes (e.g. kanagawa-dragon) with no exact
+# built-in match, so herdr doesn't just show its nearest built-in's colors.
 HERDR="$HOME/.config/herdr/config.toml"
 if [ -f "$HERDR" ] && [ -n "${HERDR_THEME:-}" ]; then
-  python3 - "$HERDR_THEME" <<'EOF'
+  HERDR_BLOCK="[theme]"$'\n'"name = \"$HERDR_THEME\""
+  [ -f "$T/herdr.toml" ] && HERDR_BLOCK="$HERDR_BLOCK"$'\n\n'"$(cat "$T/herdr.toml")"
+  python3 - "$HERDR_BLOCK" <<'EOF'
 import re, sys, pathlib
-name = sys.argv[1]
+block = sys.argv[1]
 p = pathlib.Path.home() / ".config/herdr/config.toml"
 text = p.read_text()
 text = re.sub(
     r'(# >>> themer theme \(auto-managed\) >>>\n).*?(\n# <<< themer theme <<<)',
-    lambda m: m.group(1) + f'[theme]\nname = "{name}"' + m.group(2), text, count=1, flags=re.S)
+    lambda m: m.group(1) + block + m.group(2), text, count=1, flags=re.S)
 p.write_text(text)
 EOF
   # reload every running session — each is an independent server process

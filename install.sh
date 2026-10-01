@@ -55,6 +55,7 @@ return {
   { "ellisonleao/gruvbox.nvim" },
   { "rose-pine/neovim", name = "rose-pine" },
   { "maxmx03/solarized.nvim" },
+  { "rebelot/kanagawa.nvim" },
   { "LazyVim/LazyVim", opts = { colorscheme = t.colorscheme } },
 }
 EOF

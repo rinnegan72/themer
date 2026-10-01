@@ -26,11 +26,11 @@ theme-set tokyo-night
 
 ## Themes
 
-catppuccin-frappe · catppuccin-latte · gruvbox-dark · gruvbox-light · nord · one-dark · rose-pine · rose-pine-dawn · solarized-dark · solarized-light · tokyo-night
+catppuccin-frappe · catppuccin-latte · gruvbox-dark · gruvbox-light · kanagawa-wave · kanagawa-dragon · kanagawa-lotus · nord · one-dark · rose-pine · rose-pine-dawn · solarized-dark · solarized-light · tokyo-night
 
 Ghostty uses its bundled themes, nvim uses the usual colorscheme plugins, k9s skins come from upstream ([derailed/k9s](https://github.com/derailed/k9s/tree/master/skins), [axkirillov/k9s-tokyonight](https://github.com/axkirillov/k9s-tokyonight)); tmux/atuin/lazygit fragments are hand-written from each theme's published palette.
 
-Wallpapers are pulled from omarchy's own per-theme `backgrounds/` folders. `gruvbox-light`, `one-dark`, and `rose-pine-dawn` reuse their dark/base counterpart's image (omarchy ships one gruvbox and one rose-pine, and has no one-dark theme at all); `solarized-dark`/`solarized-light` have no omarchy equivalent so they get a generated flat-color PNG in the theme's own background hex instead.
+Wallpapers are pulled from omarchy's own per-theme `backgrounds/` folders. `gruvbox-light`, `one-dark`, and `rose-pine-dawn` reuse their dark/base counterpart's image (omarchy ships one gruvbox and one rose-pine, and has no one-dark theme at all); `solarized-dark`/`solarized-light` have no omarchy equivalent so they get a generated flat-color PNG in the theme's own background hex instead. `kanagawa-wave`, `kanagawa-dragon`, and `kanagawa-lotus` all share omarchy's single kanagawa background — Hokusai's "The Great Wave off Kanagawa," the print the theme (and its wave/dragon/lotus variants) is named after.
 
 ## Install
 
