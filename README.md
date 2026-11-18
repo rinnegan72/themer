@@ -22,6 +22,7 @@ theme-set tokyo-night
 | k9s | `skins/themer.yaml` symlink | next launch |
 | lazygit | whole `config.yml` is a symlink | next launch |
 | starship | marker-scoped `[palettes.themer]` table swap — only touches that block, never your module config/format | `theme-set`, next prompt |
+| T3 Code | `t3 theme set themes/<name>/t3code.json --id themer` (canvas + accent; T3 derives the palette) | connected clients switch live |
 | Desktop wallpaper | `wallpaper.<ext>` per theme, art from [omarchy](https://github.com/basecamp/omarchy) (MIT) where a matching theme exists, else a generated solid-color fill | `osascript`/System Events, instant |
 
 ## Themes
@@ -62,6 +63,7 @@ tmux.conf      # segmented status bar (catppuccin/tmux-style), pane/message styl
 atuin.toml     # 8 color keys
 lazygit.yml    # gui.theme block
 k9s.yaml       # a k9s skin
+t3code.json    # name, appearance, canvas, accent (hex)
 starship.toml  # [palettes.themer]: red, peach, yellow, green, sapphire, lavender, crust
 wallpaper.<ext> # a photo, or a generated solid-color PNG if nothing suitable exists
 ```

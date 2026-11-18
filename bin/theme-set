@@ -65,6 +65,12 @@ EOF
   done
 fi
 
+# t3code: publish the theme's canvas/accent pair and make it the environment default;
+# connected clients switch live. Env var T3CODE_HOME is honored by the CLI itself.
+if command -v t3 >/dev/null && [ -f "$T/t3code.json" ]; then
+  t3 theme set "$T/t3code.json" --id themer >/dev/null 2>&1 || true
+fi
+
 # ghostty: reads current/ghostty.conf via symlink; nudge a reload
 # pgrep can't see it: macOS stores the truncated bundle path as the proc name;
 # ucomm column is space-padded, hence the ' *'
