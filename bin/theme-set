@@ -107,9 +107,9 @@ if [ -n "$WALL" ]; then
 fi
 
 # vivaldi: one user theme, id "themer", built from this theme's existing
-# palette. Live through DevTools when the browser was started with
-# --remote-debugging-port; otherwise written for the next launch. A running
-# browser without that port is left alone (it would overwrite a file edit on quit).
+# palette. Live through DevTools when the process is already listening;
+# otherwise quit, write Preferences, and relaunch with the port so this
+# switch and later ones actually use the palette (not just OS light/dark).
 "$REPO/bin/vivaldi-theme" "$T"
 
 # k9s: copy (not symlink) into its watched skins dir — k9s's fsnotify watcher

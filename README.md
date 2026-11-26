@@ -23,7 +23,7 @@ theme-set tokyo-night
 | lazygit | whole `config.yml` is a symlink | next launch |
 | starship | marker-scoped `[palettes.themer]` table swap — only touches that block, never your module config/format | `theme-set`, next prompt |
 | T3 Code | `t3 theme set themes/<name>/t3code.json --id themer` (canvas + accent; T3 derives the palette) | connected clients switch live |
-| Vivaldi | user theme `themer` in the profile Preferences. Background and accent come from `t3code.json`, foreground from atuin `Base`, highlight from starship `sapphire`. The OS theme schedule is turned off so it does not snap back to Vivaldi's built-in light/dark themes | live if Vivaldi was started with `--remote-debugging-port=9222 --remote-allow-origins=http://127.0.0.1:9222`; otherwise next launch. A running window without that port is left alone (it would overwrite a file edit on quit) |
+| Vivaldi | user theme `themer` in the profile Preferences. Background and accent come from `t3code.json`, foreground from atuin `Base`, highlight from starship `sapphire`. The OS theme schedule is turned off so it does not snap back to Vivaldi's built-in light/dark themes | live when Vivaldi is already on its DevTools port. If it is open without that port, `theme-set` quits it, writes the theme, and reopens it with `--restore-last-session` so the windows come back on the new palette |
 | Desktop wallpaper | `wallpaper.<ext>` per theme, art from [omarchy](https://github.com/basecamp/omarchy) (MIT) where a matching theme exists, else a generated solid-color fill | `osascript`/System Events, instant |
 
 ## Themes

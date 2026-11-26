@@ -8,25 +8,29 @@
 # built-in Vivaldi/Dark themes.
 #
 # A running Vivaldi keeps preferences in memory and overwrites the file on
-# quit, so the file is edited only when the profile is closed (next launch).
-# When that process was started with --remote-debugging-port, the same change
-# is sent live through DevTools to the UI page, which is what actually calls
-# vivaldi.prefs.set.
+# quit. If it was started with --remote-debugging-port, the change is sent
+# live through DevTools (vivaldi.prefs.set). Otherwise theme-set quits it,
+# writes the theme, and relaunches it with that port and --restore-last-session
+# so the window comes back already on the new palette. Later switches are live
+# for as long as that process stays up.
 import base64
 import json
 import os
 import pathlib
 import re
 import shutil
+import signal
 import socket
 import struct
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 
 THEME_ID = "themer"
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
+VIVALDI_BIN = "/Applications/Vivaldi.app/Contents/MacOS/Vivaldi"
 
 
 def die(msg):
@@ -472,37 +476,133 @@ def apply_cold(pref, theme):
     os.replace(tmp, pref)
 
 
+def theme_copy(theme):
+    return json.loads(json.dumps(theme))
+
+
+def quit_browser(pid):
+    # SIGTERM is Chromium's clean shutdown: the session is saved, then the
+    # process exits and only then is it safe to edit Preferences.
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except OSError:
+        return False
+    for _ in range(80):
+        try:
+            os.kill(pid, 0)
+        except OSError:
+            return True
+        time.sleep(0.25)
+    return False
+
+
+def free_port():
+    for port in range(9222, 9232):
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            probe.bind(("127.0.0.1", port))
+        except OSError:
+            continue
+        finally:
+            probe.close()
+        return port
+    die("no free localhost port for Vivaldi")
+
+
+def relaunch(root, port):
+    cmd = [
+        VIVALDI_BIN,
+        f"--remote-debugging-port={port}",
+        f"--remote-allow-origins=http://127.0.0.1:{port}",
+        "--restore-last-session",
+        "--no-first-run",
+        "--no-default-browser-check",
+    ]
+    default = pathlib.Path.home() / "Library/Application Support/Vivaldi"
+    if root.resolve() != default.resolve():
+        cmd.append(f"--user-data-dir={root}")
+    subprocess.Popen(
+        cmd,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+
+
+def wait_for_browser(root, timeout=30):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        pid = singleton_pid(root)
+        port = vivaldi_port(pid) if pid else None
+        if port:
+            return pid, port
+        time.sleep(0.25)
+    return None, None
+
+
+def live_ok(result, theme):
+    got = str((result or {}).get("colorBg") or "")
+    if (result or {}).get("current") != THEME_ID or got.lower() != theme["colorBg"]:
+        return False
+    if (result or {}).get("schedule") not in (0, "off"):
+        return False
+    css = str((result or {}).get("cssBg") or "").lower()
+    # Empty until the UI has subscribed; a real value must be this palette.
+    return not css or css == theme["colorBg"]
+
+
+def confirm_live(port, theme):
+    last = None
+    for _ in range(12):
+        try:
+            last = apply_live(port, theme_copy(theme))
+        except SystemExit as exc:
+            last = exc
+            time.sleep(0.5)
+            continue
+        css = str(last.get("cssBg") or "").lower() if isinstance(last, dict) else ""
+        if isinstance(last, dict) and live_ok(last, theme) and css == theme["colorBg"]:
+            return last
+        time.sleep(0.5)
+    if isinstance(last, dict) and live_ok(last, theme):
+        return last
+    die(f"theme did not paint ({last})")
+
+
 def apply(theme_dir):
     theme = build_theme(theme_dir)
     name = pathlib.Path(theme_dir).name
     root = user_data_dir()
     if not root.exists():
         return
+    restarted = False
     pid = singleton_pid(root)
     if pid:
         port = vivaldi_port(pid)
-        if not port:
-            print(
-                "vivaldi: running without --remote-debugging-port; "
-                "quit it and run theme-set again to apply "
-                "(start it with --remote-debugging-port=9222 --remote-allow-origins=http://127.0.0.1:9222 for live switches)",
-                file=sys.stderr,
-            )
+        if port:
+            confirm_live(port, theme)
+            print(f"vivaldi: {name} (live)")
             return
-        result = apply_live(port, theme)
-        got = str((result or {}).get("colorBg") or "")
-        if (result or {}).get("current") != THEME_ID or got.lower() != theme["colorBg"]:
-            die(f"live theme did not stick ({result})")
-        if (result or {}).get("schedule") not in (0, "off"):
-            die(f"theme schedule still {(result or {}).get('schedule')!r}")
-        print(f"vivaldi: {name} (live)")
-        return
+        if not quit_browser(pid):
+            die("Vivaldi did not quit, so the theme was not written")
+        time.sleep(0.4)
+        restarted = True
     profiles = profile_dirs(root)
     if not profiles:
         return
     for pref in (p / "Preferences" for p in profiles):
-        apply_cold(pref, json.loads(json.dumps(theme)))
-    print(f"vivaldi: {name} (next launch)")
+        apply_cold(pref, theme_copy(theme))
+    if not restarted:
+        print(f"vivaldi: {name} (next launch)")
+        return
+    port = free_port()
+    relaunch(root, port)
+    _, port = wait_for_browser(root)
+    if not port:
+        print(f"vivaldi: {name} (restarted)")
+        return
+    confirm_live(port, theme)
+    print(f"vivaldi: {name} (restarted)")
 
 
 def main(argv):
