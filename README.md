@@ -23,6 +23,7 @@ theme-set tokyo-night
 | lazygit | whole `config.yml` is a symlink | next launch |
 | starship | marker-scoped `[palettes.themer]` table swap — only touches that block, never your module config/format | `theme-set`, next prompt |
 | T3 Code | `t3 theme set themes/<name>/t3code.json --id themer` (canvas + accent; T3 derives the palette) | connected clients switch live |
+| Vivaldi | user theme `themer` in the profile Preferences. Background and accent come from `t3code.json`, foreground from atuin `Base`, highlight from starship `sapphire`. The OS theme schedule is turned off so it does not snap back to Vivaldi's built-in light/dark themes | live if Vivaldi was started with `--remote-debugging-port=9222 --remote-allow-origins=http://127.0.0.1:9222`; otherwise next launch. A running window without that port is left alone (it would overwrite a file edit on quit) |
 | Desktop wallpaper | `wallpaper.<ext>` per theme, art from [omarchy](https://github.com/basecamp/omarchy) (MIT) where a matching theme exists, else a generated solid-color fill | `osascript`/System Events, instant |
 
 ## Themes
@@ -63,7 +64,9 @@ tmux.conf      # segmented status bar (catppuccin/tmux-style), pane/message styl
 atuin.toml     # 8 color keys
 lazygit.yml    # gui.theme block
 k9s.yaml       # a k9s skin
-t3code.json    # name, appearance, canvas, accent (hex)
-starship.toml  # [palettes.themer]: red, peach, yellow, green, sapphire, lavender, crust
+t3code.json    # name, appearance, canvas, accent (hex). Vivaldi's background and accent come from here
+starship.toml  # [palettes.themer]: red, peach, yellow, green, sapphire, lavender, crust. Vivaldi's highlight is sapphire
 wallpaper.<ext> # a photo, or a generated solid-color PNG if nothing suitable exists
 ```
+
+Vivaldi has no theme file of its own. `theme-set` builds it from `t3code.json`, atuin's `Base` foreground, and starship's `sapphire`.

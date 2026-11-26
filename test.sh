@@ -20,4 +20,5 @@ for d in themes/*/; do
 done
 
 bin/theme-set no-such-theme >/dev/null 2>&1 && { echo "bogus name should fail"; exit 1; }
+bin/vivaldi-theme --check themes
 echo "OK: $(ls themes | wc -l | tr -d ' ') themes complete"

@@ -124,4 +124,7 @@ Installed. One-time manual steps:
  3. Open a new shell for PATH (theme-set / theme-list / theme-next).
  4. If Ghostty doesn't recolor on switch, press cmd+shift+, in Ghostty
     (or grant your terminal Accessibility access for the automatic reload).
+ 5. Vivaldi applies on next launch. If it was open during install, quit it
+    and run theme-set once more. For live switches, start Vivaldi with
+    --remote-debugging-port=9222 --remote-allow-origins=http://127.0.0.1:9222
 EOF

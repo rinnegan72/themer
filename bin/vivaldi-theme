@@ -1,0 +1,524 @@
+#!/usr/bin/env python3
+# Apply the current themer palette to Vivaldi.
+#
+# Colors come from files the theme already has: t3code.json (canvas, accent,
+# appearance), atuin.toml Base (foreground), starship.toml sapphire (highlight).
+# They are written as one user theme with id "themer". Vivaldi's OS theme
+# schedule is turned off so a later dark-mode toggle does not snap back to the
+# built-in Vivaldi/Dark themes.
+#
+# A running Vivaldi keeps preferences in memory and overwrites the file on
+# quit, so the file is edited only when the profile is closed (next launch).
+# When that process was started with --remote-debugging-port, the same change
+# is sent live through DevTools to the UI page, which is what actually calls
+# vivaldi.prefs.set.
+import base64
+import json
+import os
+import pathlib
+import re
+import shutil
+import socket
+import struct
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+
+THEME_ID = "themer"
+HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def die(msg):
+    print(f"vivaldi: {msg}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def hex_color(value, what):
+    v = str(value).strip()
+    if re.fullmatch(r"#[0-9a-fA-F]{3}", v):
+        v = "#" + "".join(c * 2 for c in v[1:])
+    if not HEX.fullmatch(v):
+        die(f"bad {what} color {value!r}")
+    return v.lower()
+
+
+def toml_string(text, key):
+    m = re.search(rf'(?m)^\s*{re.escape(key)}\s*=\s*"([^"]+)"', text)
+    return m.group(1) if m else None
+
+
+def build_theme(theme_dir):
+    theme_dir = pathlib.Path(theme_dir)
+    try:
+        t3 = json.loads((theme_dir / "t3code.json").read_text())
+        atuin = (theme_dir / "atuin.toml").read_text()
+        starship = (theme_dir / "starship.toml").read_text()
+    except FileNotFoundError as e:
+        die(f"missing {e.filename}")
+    appearance = t3.get("appearance")
+    if appearance not in ("dark", "light"):
+        die(f"{theme_dir.name}: appearance must be dark or light")
+    bg = hex_color(t3.get("canvas"), "canvas")
+    accent = hex_color(t3.get("accent"), "accent")
+    fg = hex_color(toml_string(atuin, "Base") or "", "atuin Base")
+    highlight = hex_color(toml_string(starship, "sapphire") or "", "starship sapphire")
+    # Flat color, no start-page photo: the chrome should read as the same
+    # palette the rest of the desktop just switched to.
+    return {
+        "accentFromPage": False,
+        "accentOnWindow": True,
+        "accentSaturationLimit": 1,
+        "alpha": 1,
+        "backgroundImage": "",
+        "backgroundPosition": "stretch",
+        "backgroundSource": "",
+        "blur": 0,
+        "colorAccentBg": accent,
+        "colorBg": bg,
+        "colorFg": fg,
+        "colorHighlightBg": highlight,
+        "colorPosition": "tabbar",
+        "colorWindowBg": bg,
+        "contrast": 0,
+        "defaultBackground": bg,
+        "dimBlurred": False,
+        "engineVersion": 1,
+        "id": THEME_ID,
+        "name": theme_dir.name,
+        "preferSystemAccent": False,
+        "radius": 8,
+        "simpleScrollbar": True,
+        "transparencyTabBar": False,
+        "transparencyTabs": False,
+        "url": "",
+        "version": 1,
+        "_appearance": appearance,
+    }
+
+
+def contrast(a, b):
+    def channel(c):
+        c = c / 255
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+    def lum(h):
+        r, g, b = int(h[1:3], 16), int(h[3:5], 16), int(h[5:7], 16)
+        return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+
+    hi, lo = max(lum(a), lum(b)), min(lum(a), lum(b))
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def check_themes(root):
+    root = pathlib.Path(root)
+    n = 0
+    for d in sorted(p for p in root.iterdir() if p.is_dir()):
+        theme = build_theme(d)
+        ratio = contrast(theme["colorFg"], theme["colorBg"])
+        if ratio < 3:
+            die(f"{d.name}: foreground/background contrast {ratio:.2f} is too low")
+        n += 1
+    if n == 0:
+        die(f"no themes in {root}")
+    return n
+
+
+def user_data_dir():
+    return pathlib.Path(
+        os.environ.get(
+            "VIVALDI_USER_DATA_DIR",
+            pathlib.Path.home() / "Library/Application Support/Vivaldi",
+        )
+    )
+
+
+def singleton_pid(root):
+    lock = root / "SingletonLock"
+    try:
+        target = os.readlink(lock)
+    except OSError:
+        return None
+    pid = target.rsplit("-", 1)[-1]
+    if not pid.isdigit():
+        return None
+    pid = int(pid)
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return None
+    return pid
+
+
+def listening_ports(pid):
+    try:
+        out = subprocess.run(
+            ["lsof", "-nP", "-a", "-p", str(pid), "-iTCP", "-sTCP:LISTEN"],
+            check=False,
+            capture_output=True,
+            text=True,
+        ).stdout
+    except OSError:
+        return []
+    ports = []
+    for m in re.finditer(r":(\d+)\s+\(LISTEN\)", out):
+        port = int(m.group(1))
+        if port not in ports:
+            ports.append(port)
+    return ports
+
+
+def process_is_vivaldi(pid):
+    try:
+        out = subprocess.run(
+            ["ps", "-p", str(pid), "-o", "command="],
+            check=False,
+            capture_output=True,
+            text=True,
+        ).stdout
+    except OSError:
+        return False
+    return "Vivaldi" in out
+
+
+def http_json(url, timeout=2):
+    with urllib.request.urlopen(url, timeout=timeout) as r:
+        return json.load(r)
+
+
+def devtools_version(port):
+    try:
+        return http_json(f"http://127.0.0.1:{port}/json/version")
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, ValueError):
+        return None
+
+
+def vivaldi_port(pid):
+    # /json/version's Browser field is the Chromium version ("Chrome/…"),
+    # so the profile lock plus a DevTools socket on that process is the check.
+    # The debugging port is on the browser process itself.
+    if not process_is_vivaldi(pid):
+        return None
+    owned = listening_ports(pid)
+    forced = os.environ.get("VIVALDI_DEBUG_PORT")
+    if forced:
+        port = int(forced)
+        version = devtools_version(port)
+        if not version or "webSocketDebuggerUrl" not in version:
+            return None
+        if port in owned or "Vivaldi" in json.dumps(version):
+            return port
+        return None
+    for port in owned:
+        version = devtools_version(port)
+        if version and "webSocketDebuggerUrl" in version:
+            return port
+    return None
+
+
+def _ws_handshake(url):
+    rest = url[len("ws://") :]
+    hostport, path = rest.split("/", 1)
+    host, port = hostport.rsplit(":", 1)
+    sock = socket.create_connection((host, int(port)), timeout=8)
+    key = base64.b64encode(os.urandom(16)).decode()
+    req = (
+        f"GET /{path} HTTP/1.1\r\n"
+        f"Host: {hostport}\r\n"
+        "Upgrade: websocket\r\n"
+        "Connection: Upgrade\r\n"
+        f"Sec-WebSocket-Key: {key}\r\n"
+        "Sec-WebSocket-Version: 13\r\n"
+        f"Origin: http://{hostport}\r\n"
+        "\r\n"
+    )
+    sock.sendall(req.encode())
+    buf = b""
+    while b"\r\n\r\n" not in buf:
+        chunk = sock.recv(4096)
+        if not chunk:
+            die("DevTools handshake failed")
+        buf += chunk
+    head, leftover = buf.split(b"\r\n\r\n", 1)
+    if b" 101 " not in head.split(b"\r\n", 1)[0]:
+        die(head.decode(errors="replace")[:200])
+    return sock, leftover
+
+
+def _ws_recv(sock, buf):
+    buf = bytearray(buf)
+
+    def need(n):
+        while len(buf) < n:
+            chunk = sock.recv(65536)
+            if not chunk:
+                die("DevTools connection closed")
+            buf.extend(chunk)
+
+    need(2)
+    fin = buf[0] & 0x80
+    opcode = buf[0] & 0x0F
+    ln = buf[1] & 0x7F
+    masked = buf[1] & 0x80
+    offset = 2
+    if ln == 126:
+        need(4)
+        ln = struct.unpack(">H", buf[2:4])[0]
+        offset = 4
+    elif ln == 127:
+        need(10)
+        ln = struct.unpack(">Q", buf[2:10])[0]
+        offset = 10
+    if masked:
+        need(offset + 4 + ln)
+        mask = buf[offset : offset + 4]
+        offset += 4
+        payload = bytes(b ^ mask[i % 4] for i, b in enumerate(buf[offset : offset + ln]))
+    else:
+        need(offset + ln)
+        payload = bytes(buf[offset : offset + ln])
+    return fin, opcode, payload, bytes(buf[offset + ln :])
+
+
+def _ws_send(sock, text):
+    data = text.encode()
+    mask = os.urandom(4)
+    n = len(data)
+    frame = bytearray([0x81])
+    if n < 126:
+        frame.append(0x80 | n)
+    elif n < 65536:
+        frame.append(0x80 | 126)
+        frame.extend(struct.pack(">H", n))
+    else:
+        frame.append(0x80 | 127)
+        frame.extend(struct.pack(">Q", n))
+    frame.extend(mask)
+    frame.extend(b ^ mask[i % 4] for i, b in enumerate(data))
+    sock.sendall(frame)
+
+
+def _ws_text(sock, leftover):
+    parts = []
+    while True:
+        fin, opcode, payload, leftover = _ws_recv(sock, leftover)
+        if opcode == 0x9:  # ping
+            _ws_send(sock, "")  # not a spec pong; DevTools doesn't ping during this call
+            continue
+        if opcode == 0x8:
+            die("DevTools closed the connection")
+        if opcode in (0x1, 0x0):
+            parts.append(payload)
+            if fin:
+                return b"".join(parts).decode(), leftover
+        elif fin:
+            continue
+
+
+def _ui_socket(port):
+    targets = http_json(f"http://127.0.0.1:{port}/json/list", timeout=5)
+    ws_url = None
+    for t in targets:
+        url = t.get("url") or ""
+        if "window.html" in url or "browser.html" in url:
+            ws_url = t.get("webSocketDebuggerUrl")
+            break
+    if not ws_url:
+        listed = ", ".join((t.get("url") or t.get("type") or "?") for t in targets[:8])
+        die(f"DevTools is up but the Vivaldi UI page is not listed ({listed})")
+    return _ws_handshake(ws_url)
+
+
+def _cdp(sock, leftover, msg_id, method, params):
+    _ws_send(sock, json.dumps({"id": msg_id, "method": method, "params": params}))
+    while True:
+        text, leftover = _ws_text(sock, leftover)
+        msg = json.loads(text)
+        if msg.get("id") != msg_id:
+            continue
+        if "error" in msg:
+            die(msg["error"].get("message", "DevTools error"))
+        return leftover, msg.get("result", {})
+
+
+def cdp_eval(port, expression):
+    sock, leftover = _ui_socket(port)
+    try:
+        leftover, result = _cdp(
+            sock,
+            leftover,
+            1,
+            "Runtime.evaluate",
+            {
+                "expression": expression,
+                "awaitPromise": True,
+                "returnByValue": True,
+                "timeout": 15000,
+            },
+        )
+        details = result.get("exceptionDetails")
+        if details:
+            desc = (details.get("exception") or {}).get("description") or details.get("text")
+            die(desc or "theme script failed")
+        return result.get("result", {}).get("value")
+    finally:
+        sock.close()
+
+
+def apply_live(port, theme):
+    appearance = theme.pop("_appearance")
+    payload = json.dumps(theme)
+    dark = "true" if appearance == "dark" else "false"
+    color_mode = "dark" if appearance == "dark" else "light"
+    # Schedule off first: the default "system" schedule would otherwise
+    # replace themes.current with the built-in light/dark theme as soon as
+    # theme-set flips the macOS appearance.
+    # prefs.get hands back {{value}} in current Vivaldi, and the raw value in older builds.
+    expression = f"""
+new Promise((resolve, reject) => {{
+  const theme = {payload};
+  const val = (v) => (v && typeof v === "object" && !Array.isArray(v) && "value" in v) ? v.value : v;
+  const start = Date.now();
+  (function wait() {{
+    if (!(window.vivaldi && vivaldi.prefs)) {{
+      if (Date.now() - start > 8000) {{ reject("vivaldi.prefs is not available"); return; }}
+      setTimeout(wait, 100);
+      return;
+    }}
+    vivaldi.prefs.set({{path: "vivaldi.theme.schedule.enabled", value: "off"}});
+    vivaldi.prefs.get("vivaldi.themes.user", (user) => {{
+      const raw = val(user);
+      const list = Array.isArray(raw) ? raw.slice() : [];
+      const i = list.findIndex((t) => t && t.id === theme.id);
+      if (i >= 0) list[i] = theme; else list.push(theme);
+      vivaldi.prefs.set({{path: "vivaldi.themes.user", value: list}});
+      vivaldi.prefs.set({{path: "vivaldi.themes.current", value: theme.id}});
+      vivaldi.prefs.set({{path: "vivaldi.theme.is_dark", value: {dark}}});
+      vivaldi.prefs.set({{path: "vivaldi.system.desktop_theme_color", value: "{color_mode}"}});
+      vivaldi.prefs.get("vivaldi.themes.current", (cur) => {{
+        vivaldi.prefs.get("vivaldi.themes.user", (again) => {{
+          const found = (val(again) || []).find((t) => t && t.id === theme.id) || {{}};
+          const el = document.getElementById("browser") || document.documentElement;
+          const cs = getComputedStyle(el);
+          resolve({{
+            current: val(cur),
+            name: found.name,
+            kept: (val(again) || []).filter((t) => t && t.id !== theme.id).map((t) => t.id),
+            colorBg: found.colorBg,
+            colorFg: found.colorFg,
+            colorAccentBg: found.colorAccentBg,
+            colorHighlightBg: found.colorHighlightBg,
+            cssBg: (cs.getPropertyValue("--colorBg") || "").trim(),
+            cssFg: (cs.getPropertyValue("--colorFg") || "").trim(),
+            cssAccent: (cs.getPropertyValue("--colorAccentBg") || "").trim()
+          }});
+        }});
+      }});
+    }});
+  }})();
+}})
+"""
+    value = cdp_eval(port, expression)
+    # Second read so schedule.enabled is observed after the set has landed.
+    schedule = cdp_eval(
+        port,
+        """new Promise((resolve) => {
+          const val = (v) => (v && typeof v === "object" && !Array.isArray(v) && "value" in v) ? v.value : v;
+          vivaldi.prefs.get("vivaldi.theme.schedule.enabled", (v) => resolve(val(v)));
+        })""",
+    )
+    if isinstance(value, dict):
+        value["schedule"] = schedule
+    return value
+
+
+def profile_dirs(root):
+    dirs = []
+    default = root / "Default"
+    if (default / "Preferences").exists():
+        dirs.append(default)
+    dirs.extend(sorted(p for p in root.glob("Profile *") if (p / "Preferences").exists()))
+    return dirs
+
+
+def apply_cold(pref, theme):
+    appearance = theme.pop("_appearance")
+    try:
+        data = json.loads(pref.read_text())
+    except json.JSONDecodeError:
+        die(f"{pref} is not valid JSON")
+    v = data.setdefault("vivaldi", {})
+    themes = v.setdefault("themes", {})
+    user = themes.get("user")
+    if not isinstance(user, list):
+        user = []
+    user = [t for t in user if not (isinstance(t, dict) and t.get("id") == THEME_ID)]
+    user.append(theme)
+    themes["user"] = user
+    themes["current"] = THEME_ID
+    theme_prefs = v.setdefault("theme", {})
+    schedule = theme_prefs.setdefault("schedule", {})
+    schedule["enabled"] = 0
+    theme_prefs["is_dark"] = appearance == "dark"
+    system = v.setdefault("system", {})
+    system["desktop_theme_color"] = 1 if appearance == "dark" else 0
+    bak = pref.with_name(pref.name + ".bak")
+    if not bak.exists():
+        shutil.copy2(pref, bak)
+    text = json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n"
+    tmp = pref.with_name(pref.name + ".themer-tmp")
+    tmp.write_text(text)
+    os.chmod(tmp, pref.stat().st_mode & 0o777)
+    os.replace(tmp, pref)
+
+
+def apply(theme_dir):
+    theme = build_theme(theme_dir)
+    name = pathlib.Path(theme_dir).name
+    root = user_data_dir()
+    if not root.exists():
+        return
+    pid = singleton_pid(root)
+    if pid:
+        port = vivaldi_port(pid)
+        if not port:
+            print(
+                "vivaldi: running without --remote-debugging-port; "
+                "quit it and run theme-set again to apply "
+                "(start it with --remote-debugging-port=9222 --remote-allow-origins=http://127.0.0.1:9222 for live switches)",
+                file=sys.stderr,
+            )
+            return
+        result = apply_live(port, theme)
+        got = str((result or {}).get("colorBg") or "")
+        if (result or {}).get("current") != THEME_ID or got.lower() != theme["colorBg"]:
+            die(f"live theme did not stick ({result})")
+        if (result or {}).get("schedule") not in (0, "off"):
+            die(f"theme schedule still {(result or {}).get('schedule')!r}")
+        print(f"vivaldi: {name} (live)")
+        return
+    profiles = profile_dirs(root)
+    if not profiles:
+        return
+    for pref in (p / "Preferences" for p in profiles):
+        apply_cold(pref, json.loads(json.dumps(theme)))
+    print(f"vivaldi: {name} (next launch)")
+
+
+def main(argv):
+    if len(argv) >= 2 and argv[1] == "--check":
+        root = argv[2] if len(argv) > 2 else "themes"
+        check_themes(root)
+        return
+    if len(argv) == 3 and argv[1] == "--print":
+        theme = build_theme(argv[2])
+        theme.pop("_appearance", None)
+        print(json.dumps(theme, indent=2))
+        return
+    if len(argv) != 2:
+        die("usage: vivaldi-theme <theme-dir> | --check [themes-dir] | --print <theme-dir>")
+    apply(argv[1])
+
+
+if __name__ == "__main__":
+    main(sys.argv)
